@@ -17,12 +17,13 @@ StepperMotor::StepperMotor(Adafruit_Crickit *crickit, unsigned in1, unsigned in2
   coils[2] = in3;
   coils[3] = in4;
 
+  printf("coils: {%d, %d, %d, %d}\n", coils[0], coils[1], coils[2], coils[3]);
   for (int i = 0; i < 4; i++) {
     crickit->setPWMFreq(coils[i], 2000);
     crickit->analogWrite(coils[i], 0);
   }
 
-  microsteps = 0;
+  current_microstep = 0;
   if (ms < 2) {
     printf("ERROR: microsteps must be at least 2, but was %d\n", ms);
   }
@@ -30,11 +31,10 @@ StepperMotor::StepperMotor(Adafruit_Crickit *crickit, unsigned in1, unsigned in2
     printf("ERROR: microsteps must be even, but was %d\n", ms);
   }
   microsteps = ms;
-  current_microstep = 0;
 
-  curve = new int[ms];
+  curve = new int[ms + 1];
   for (int i = 0; i < ms + 1; i++) {
-    curve[i] = (int)round(0xffff * sin(3.14159 / (2 * ms * i)));
+    curve[i] = (int)round(0xffff * sin((3.14159 / (2 * ms)) * i));
     printf("Curve[%d]: %d\n", i, curve[i]);
   }
   update_coils();
@@ -43,26 +43,28 @@ StepperMotor::StepperMotor(Adafruit_Crickit *crickit, unsigned in1, unsigned in2
 
 void StepperMotor::update_coils(bool microstepping)
 {
-  unsigned duty_cycles[] = {0, 0, 0, 0};
-  int trailing_coil = ((unsigned)(current_microstep / microsteps)) % 4;
+  printf("update_coils: microstepping = %d\n", microstepping);
+  uint16_t duty_cycles[] = {0, 0, 0, 0};
+  int trailing_coil = (current_microstep / microsteps) % 4;
   int leading_coil = (trailing_coil + 1) % 4;
   int microstep = current_microstep % microsteps;
+  printf("current_microstep: %d, microsteps: %d, microstep: %d\n", current_microstep, microsteps, microstep);
   duty_cycles[leading_coil] = curve[microstep];
   duty_cycles[trailing_coil] = curve[microsteps - microstep];
 
   // This ensures DOUBLE steps use full torque. Without it, we'd use partial torque from the
   // microstepping curve (0xb504).
+  printf("ms: %d, dc[leading]: %d, dc[trailing]: %d\n", microstepping, duty_cycles[leading_coil], duty_cycles[trailing_coil]);
   if (!microstepping && (duty_cycles[leading_coil] == duty_cycles[trailing_coil] && duty_cycles[leading_coil] > 0)) {
     duty_cycles[leading_coil] = 0xffff;
     duty_cycles[trailing_coil] = 0xffff;
 
-    // Energize coils as appropriate:
-    for (int i = 0; i < 4; i++) {
-      printf("Writing 0x%02u to 0x%02u\n", duty_cycles[i], coils[i]);
-      crickit->analogWrite(coils[i], duty_cycles[i]);
-    }
-  } else {
-    printf("leading: %d, trailing:  %d\n", duty_cycles[leading_coil], duty_cycles[trailing_coil]);
+    printf("Writing. leading: %d, trailing: %d - duty_cycles = {%u, %u, %u, %u}\n", leading_coil, trailing_coil, duty_cycles[0], duty_cycles[1], duty_cycles[2], duty_cycles[3]);
+  }
+  // Energize coils as appropriate:
+  for (int i = 0; i < 4; i++) {
+    printf("Writing 0x%04x to pin %u\n", duty_cycles[i], coils[i]);
+    crickit->analogWrite(coils[i], duty_cycles[i]);
   }
 }
 
@@ -87,6 +89,7 @@ void StepperMotor::release()
 
 unsigned StepperMotor::onestep(StepDirection direction, StepStyle style)
 {
+  printf("onestep: direction = %d, style = %d\n", direction, style);
   // Adjust current steps based on the direction and type of step.
   unsigned step_size = 0;
   if (style == MICROSTEP) {
@@ -96,6 +99,7 @@ unsigned StepperMotor::onestep(StepDirection direction, StepStyle style)
     unsigned full_step = microsteps;
     // Its possible the previous steps were MICROSTEPS so first align with the interleave pattern.
     unsigned additional_microsteps = current_microstep % half_step;
+    printf("additional_microsteps: %d\n", additional_microsteps);
     if (additional_microsteps != 0) {
       // We set current_microstep directly because our step size varies depending on the direction.
       if (direction == FORWARD) {
@@ -123,6 +127,8 @@ unsigned StepperMotor::onestep(StepDirection direction, StepStyle style)
     current_microstep -= step_size;
   }
 
+  printf("step size: %d\n", step_size);
+  printf("current_microstep: %d\n", current_microstep);
   // Now that we know our target microstep we can determine how to energize the four coils.
   update_coils(style == MICROSTEP);
 

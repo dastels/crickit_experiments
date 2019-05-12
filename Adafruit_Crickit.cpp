@@ -15,6 +15,8 @@ static const uint8_t CRICKIT_adc[CRICKIT_NUM_ADC] = { CRICKIT_SIGNAL1, CRICKIT_S
 
 void Adafruit_Crickit::analogWrite(uint8_t pin, uint16_t value, uint8_t width)
 {
+  printf("Crickit writing 0x%04x to Crickit pin %u\n", value, pin);
+
   (void)width;
 
   int8_t p = -1;

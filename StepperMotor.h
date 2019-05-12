@@ -12,12 +12,12 @@
 
 using namespace std;
 
-enum  StepDirection {FORWARD, REVERSE};
+enum StepDirection {FORWARD, REVERSE};
 enum StepStyle {SINGLE, DOUBLE, INTERLEAVE, MICROSTEP};
 
 class StepperMotor {
  public:
-  StepperMotor(Adafruit_Crickit *crickit, unsigned in1, unsigned in2, unsigned in3, unsigned in4, unsigned microsteps=16);
+  StepperMotor(Adafruit_Crickit *crickit, unsigned in1, unsigned in2, unsigned in3, unsigned in4, unsigned ms=16);
   void update_coils(bool microstepping=false);
   void release();
   unsigned onestep(StepDirection direction=FORWARD, StepStyle style=SINGLE);
@@ -27,7 +27,7 @@ class StepperMotor {
   unsigned microsteps;
   unsigned current_microstep;
   int *curve;
-  int coils[4];                 // stepper motor driver inputs
+  uint8_t coils[4];                 // stepper motor driver inputs
 };
 
 #endif

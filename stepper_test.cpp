@@ -12,9 +12,12 @@ main ()
 
   StepperMotor stepper = StepperMotor(&crickit, CRICKIT_MOTOR_A1, CRICKIT_MOTOR_A2, CRICKIT_MOTOR_B1, CRICKIT_MOTOR_B2);
 
-  for (int i = 0; i < 200; i++) {
+  for (int i = 0; i < 10; i++) {
     printf("Step %d\n", i);
     stepper.onestep(FORWARD);
     delay(10);
   }
+  printf("Releasing\n");
+  stepper.release();
+  printf("Done\n");
 }
